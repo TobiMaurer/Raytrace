@@ -37,33 +37,103 @@ end
 
 function polynomial3 = polynomial_algebraic()
 
-	% x^4+y^4+z^4-1
+	% x^4+y^4+z^4-1/2
 	
-	polynomial3(1,1,1) = -1;
 	polynomial3(5,1,1) = 1;
 	polynomial3(1,5,1) = 1;
 	polynomial3(1,1,5) = 1;
+	polynomial3(1,1,1) = -1/2;
+end
+
+function polynomial3 = polynomial_torus(R,r)
+
+	%  x^4
+	% +y^4
+	% +z^4
+	% +2*(R^2-r^2)*x^2
+	% +2*(R^2-r^2)*y^2
+	% -2*(R^2+r^2)*z^2
+	% +2*x^2*y^2
+	% +2*x^2*z^2
+	% +2*y^2*z^2
+	% +R^4+r^4-2*R^2*r^2
+	
+	polynomial3(5,1,1) = +1;
+	polynomial3(1,5,1) = +1;
+	polynomial3(1,1,5) = +1;
+	polynomial3(3,1,1) = +2*(R^2-r^2);
+	polynomial3(1,3,1) = +2*(R^2-r^2);
+	polynomial3(1,1,3) = -2*(R^2+r^2);
+	polynomial3(3,3,1) = +2;
+	polynomial3(3,1,3) = +2;
+	polynomial3(1,3,3) = +2;
+	polynomial3(1,1,1) = +R^4+r^4-2*R^2*r^2;
 end
 
 
 % define materials
 
 
-function color = color_plane(object,point,normal)
+function color = color_pattern(object,point,normal)
+	color = 0;
+	
 	%#
-	color = abs(mod(point(3)*1,2)-1);
+	
+	point -= object.point;
+	coords1 = zeros(2,3);
+	coords1(1,:) = cross(point,[0 0 1]);
+	coords1(2,:) = cross(coords1(1,:),normal);
+	
+	coords2 = zeros(2,1);
+	coords2(1) = norm(coords1(1,:));
+	coords2(2) = norm(coords1(2,:));
+	
+	color = abs(mod(coords2(1)*1,2)-1);
 end
 
-function color = color_sphere(object,point,normal)
+function color = color_light(object,point,normal)
+	color = 0;
+	
 	%#
-	parallel.intensity = 0.5;
-	parallel.direction = [0 0 0];
-
-	color = 1+normal(3);
+	
+	ambient.intensity = 0;
+	
+	parallel.intensity = 0.8;
+	parallel.direction = [-1 -1 -1];
+	
+	specular.intensity = 0.3;
+	specular.direction = [-2 -1 -3];
+	
+	
+	% ambient light
+	intensity = ambient.intensity;
+	color += max(0,intensity);
+	
+	% parallel light
+	direction = parallel.direction;
+	direction /= norm(direction);
+	intensity = parallel.intensity;
+	intensity *= dot(direction,normal);
+	color += max(0,intensity);
+	
+	% specular light
+	direction = specular.direction;
+	direction /= norm(direction);
+	intensity = specular.intensity;
+	intensity *= dot(direction,normal)^30;
+	color += max(0,intensity);
 end
 
-function color = color_algebraic(object,point,normal)
-	%#
+function color = color_grid(object,point,normal)
+	color = 0;
+	
+	point *= [1 0 0;0 cos(pi/12) -sin(pi/12);0 sin(pi/12) cos(pi/12)];
+	point *= [cos(pi/12) 0 sin(pi/12);0 1 0;-sin(pi/12) 0 cos(pi/12)];
+	
+	for i = 1:3
+		intensity = abs(mod(point(i) * 5,2) - 1) ^ 10;
+		color = max(color,intensity);
+	end
 end
 
 
@@ -72,11 +142,12 @@ end
 
 clear objects;
 
-objects{end+1} = new_plane([-1/2 -1/2 -1/2],[1/2 -1 -1/4],@color_plane);
-objects{end+1} = new_sphere([0 0 0],0.9,@color_sphere);
-objects{end+1} = new_sphere([1/2 0 -3/5],0.3,@color_sphere);
-objects{end+1} = new_sphere([-1/2 -1/2 -1/2],0.5,@color_sphere);
-%objects{end+1} = new_algebraic([0 0 0],@polynomial_algebraic,@color_algebraic);
+%objects{end+1} = new_plane([1/2 1/2 1/2],[1/2 -1 -1/4],@color_pattern);
+%objects{end+1} = new_sphere([0 0 0],0.9,@color_grid);
+%objects{end+1} = new_sphere([1/2 0 -3/5],0.3,@color_light);
+%objects{end+1} = new_sphere([-1/2 -1/2 -1/2],0.5,@color_light);
+%objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
+objects{end+1} = new_algebraic([0 0 0],@polynomial_algebraic(),@color_light);
 
 
 % end of scene definition
@@ -85,9 +156,8 @@ objects{end+1} = new_sphere([-1/2 -1/2 -1/2],0.5,@color_sphere);
 % initialize variables
 
 
-global rows = [-1 : 2/80 : 1];
-global cols = [-1 : 2/80 : 1];
-global appx = 10;
+global rows = [-1 : 2/200 : 1]; % projective surface
+global cols = [-1 : 2/200 : 1];
 
 global objmap = cell(numel(rows),numel(cols));
 global depths = ones(numel(rows),numel(cols)) * inf;
@@ -162,16 +232,17 @@ function depth = depth_sphere(object,coords)
 	end
 end
 
-function polynomial = distance(polynomial3,coords)
-	polynomial(size(polynomial3,3)) = 0;
+function polynomial = partial(polynomial3,coords,sel)
+	polynomial = zeros(size(polynomial3,3),1);
 	
 	
-	p = polynomial3;
+	p = permute(polynomial3,sel);
 	x = coords;
 %	v = [0 0 1];
 	
 	
-	% distance polynomial for x + v*t
+	% partial polynomial for x + v*t
+	% for distance and partial derivation
 	%
 	% p(x + v*t) =
 	%      sum_ijk(p_ijk*(x_1 + v_1*t)^i
@@ -182,12 +253,21 @@ function polynomial = distance(polynomial3,coords)
 	
 	
 	for i1 = 1:size(p,1)
+		
+		x1 = x(1)^(i1 - 1);
+		%x1 = exp((i1 - 1) * log(x(1)));
+		
 		for i2 = 1:size(p,2)
+			
+			x2 = x(2)^(i2 - 1);
+			%x2 = exp((i2 - 1) * log(x(2)));
+			
 			for i3 = 1:size(p,3)
 				
 				c = p(i1,i2,i3);
-				c *= x(1)^(i1 - 1);
-				c *= x(2)^(i2 - 1);
+				
+				c *= x1;
+				c *= x2;
 				
 				polynomial(i3) += c;
 				
@@ -197,12 +277,13 @@ function polynomial = distance(polynomial3,coords)
 end
 
 function derivative = derive(polynomial)
+	derivative = zeros(numel(polynomial) - 1,1);
 	
 	
 	p = polynomial;
 	
 	
-	% derivative of polynomial in t
+	% derivative of polynomial in one variable
 	%
 	% q_(i - 1) = p_i*i
 	
@@ -217,6 +298,34 @@ function derivative = derive(polynomial)
 	end
 end
 
+function gradient = derive3(polynomial3,point)
+	gradient = zeros(3,1);
+	
+	
+	p = polynomial3;
+	x = point;
+	
+	
+	% gradient of polynomial in three variables
+	%
+	% g = (d_1(p,x),d_2(p,x),d_3(p,x))
+	
+	
+	q1 = partial(p,[x(2) x(3)],[2 3 1]);
+	q2 = partial(p,[x(3) x(1)],[3 1 2]);
+	q3 = partial(p,[x(1) x(2)],[1 2 3]);
+	
+	r1 = derive(q1);
+	r2 = derive(q2);
+	r3 = derive(q3);
+	
+	gradient(1) = evaluate(r1,x(1));
+	gradient(2) = evaluate(r2,x(2));
+	gradient(3) = evaluate(r3,x(3));
+	
+	%#
+end
+
 function value = evaluate(polynomial,t)
 	value = 0;
 	
@@ -224,41 +333,66 @@ function value = evaluate(polynomial,t)
 	p = polynomial;
 	
 	
-	% value of polynomial in t
+	% value of polynomial in one variable
 	%
 	% p(t) = sum_i(p_i*t^i)
 	
 	
-	for i1 = 1:numel(p)
+	% Horner-Schema
+	%
+	% sum_i(a_i*x^i) = h_0
+	% h_(n + 1) = 0
+	% h_(i - 1) = h_i*x + a_(i - 1)
+	
+	
+	for i1 = numel(p):-1:1
 		
-		v = p(i1);
-		v *= t^(i1 - 1);
-		
-		value += v;
+		value *= t;
+		value += p(i1);
 		
 	end
 end
 
 function depth = depth_algebraic(object,coords)
-	global appx;
 	depth = inf;
 	
-	
-	p = distance(object.polynomial3,coords);
+	p = partial(object.polynomial3,coords,[1 2 3]);
 	q = derive(p);
 	
-	%object.polynomial3
-	p
-	q
-	%exit;
+	value = inf;
+	t1 = -1;
+	eps = 1e-3;
 	
-	x = coords;
+	% begin with [coords(1) coords(2) -1]
+	% begin with t = -1
 	
-	for i = 1:appx
+	% abort on abs(p(x))<eps or after 10
+	% iterations, whichever occurs first
+	
+	
+	for i = 1:10
+		
+		value = evaluate(p,t1);
+		
+		deriv = evaluate(q,t1);
+		deriv = min(-1,deriv);
+		
+		if abs(value) < eps
+			break;
+		end
+		
+		t2 = t1;
+		t2 += value / deriv;
+		
+		deriv = evaluate(abs(q),max(abs([t1 t2])));
+		
+		t1 += value / deriv;
+		
 	end
 	
-	
-	
+	if abs(value) < 0.1
+		depth = t1;
+	end
 	
 	%#
 end
@@ -302,7 +436,8 @@ function normal = normal_sphere(object,point)
 end
 
 function normal = normal_algebraic(object,point)
-	%#
+	normal = derive3(object.polynomial3,point);
+	normal /= norm(normal);
 end
 
 for row = 1:numel(rows)
@@ -323,7 +458,8 @@ for row = 1:numel(rows)
 				normal = normal_algebraic(object,point);
 			end
 			
-			pixels(row,col) = object.color(object,point,normal);
+			pixels(row,col) = ...
+				object.color(object,point,normal);
 			
 		end
 	end
