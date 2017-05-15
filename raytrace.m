@@ -32,172 +32,17 @@ function object = new_algebraic(point,polynomial3,color)
 end
 
 
-% define surfaces
+% load scene
 
 
-function polynomial3 = polynomial_cube()
-
-	% x^4+y^4+z^4-1/3
-	
-	polynomial3(5,1,1) = 1;
-	polynomial3(1,5,1) = 1;
-	polynomial3(1,1,5) = 1;
-	polynomial3(1,1,1) = -1/3;
-end
-
-function polynomial3 = polynomial_cube2()
-
-	% x^4+(y*cos(phi)+z*sin(phi))^4+(z*cos(phi)-y*sin(phi))^4-1/3
-	
-	phi = pi/5;
-	a = cos(phi);
-	b = sin(phi);
-	
-	%  x^4
-	% +(a^4+b^4)*y^4
-	% +(a^4+b^4)*z^4
-	% +(4*a^3*b-4*a*b^3)*y^3*z
-	% +(12*a^2*b^2)*y^2*z^2
-	% +(4*a*b^3-4*a^3*b)*y*z^3
-	% -1/3
-	
-	polynomial3(5,1,1) = 1;
-	polynomial3(1,5,1) = a^4+b^4;
-	polynomial3(1,1,5) = a^4+b^4;
-	polynomial3(1,4,2) = 4*a^3*b-4*a*b^3;
-	polynomial3(1,3,3) = 12*a^2*b^2;
-	polynomial3(1,2,4) = 4*a*b^3-4*a^3*b;
-	polynomial3(1,1,1) = -1/3;
-end
-
-function polynomial3 = polynomial_torus(R,r)
-
-	%  x^4
-	% +y^4
-	% +z^4
-	% -2*(R^2+r^2)*x^2
-	% -2*(R^2+r^2)*y^2
-	% +2*(R^2-r^2)*z^2
-	% +2*x^2*y^2
-	% +2*x^2*z^2
-	% +2*y^2*z^2
-	% +R^4+r^4-2*R^2*r^2
-	
-	polynomial3(5,1,1) = +1;
-	polynomial3(1,5,1) = +1;
-	polynomial3(1,1,5) = +1;
-	polynomial3(3,1,1) = -2*(R^2+r^2);
-	polynomial3(1,3,1) = -2*(R^2+r^2);
-	polynomial3(1,1,3) = +2*(R^2-r^2);
-	polynomial3(3,3,1) = +2;
-	polynomial3(3,1,3) = +2;
-	polynomial3(1,3,3) = +2;
-	polynomial3(1,1,1) = +R^4+r^4-2*R^2*r^2;
-end
-
-
-% define materials
-
-
-function color = color_pattern(object,point,normal)
-	color = 0;
-	
-	point -= object.point;
-	base1 = cross(normal,[0 0 1]);
-	base2 = cross(base1,normal);
-	base1 /= norm(base1);
-	base2 /= norm(base2);
-	
-	coord1 = dot(point,base1);
-	coord2 = dot(point,base2);
-	
-	color += abs(mod(coord1,1) - 0.5);
-	color += abs(mod(coord2,1) - 0.5);
-end
-
-function color = color_light(object,point,normal)
-	color = 0;
-	
-	
-	ambient.intensity = 0.1;
-	
-	parallel.intensity = 0.8;
-	parallel.direction = [-1 -1 -1];
-	
-	specular.intensity = 0.3;
-	specular.direction = [-2 -1 -3];
-	
-	
-	% ambient light
-	intensity = ambient.intensity;
-	color += max(0,intensity);
-	
-	% parallel light
-	direction = parallel.direction;
-	direction /= norm(direction);
-	intensity = parallel.intensity;
-	intensity *= dot(direction,normal);
-	color += max(0,intensity);
-	
-	% specular light
-	direction = specular.direction;
-	direction /= norm(direction);
-	intensity = specular.intensity;
-	intensity *= dot(direction,normal)^30;
-	color += max(0,intensity);
-end
-
-function color = color_grid(object,point,normal)
-	color = 0;
-	
-	%point *= [1 0 0;0 cos(pi/12) -sin(pi/12);0 sin(pi/12) cos(pi/12)];
-	%point *= [cos(pi/12) 0 sin(pi/12);0 1 0;-sin(pi/12) 0 cos(pi/12)];
-	
-	for i = 1:3
-		intensity = abs(mod(point(i) * 5,2) - 1) ^ 10;
-		color = max(color,intensity);
-	end
-end
-
-
-% define scene
-
-
-clear objects;
-
-%objects{end+1} = new_plane([0 1/2 0],[1 3 2],@color_pattern);
-%objects{end+1} = new_sphere([0 0 0],0.9,@color_light);
-%objects{end+1} = new_sphere([1/2 0 -3/5],0.3,@color_light);
-%objects{end+1} = new_sphere([-1/2 -1/2 -1/2],0.5,@color_light);
-objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
-%objects{end+1} = new_algebraic([0 0 0],@polynomial_cube2(),@color_light);
-%objects{end+1} = new_algebraic([1/2 1/2 -1/4],@polynomial_cube2(),@color_light);
-
-
-% end of scene definition
-
-
-% predefined scenes
-
-
-if exist("build") == 1
-	clear objects;
-	
-	source("res.m");
-	
-	if build == 1
-		objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
-	elseif build == 2
-		objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
-	end
-end
+source("scene.m");
 
 
 % initialize variables
 
 
-global rows = [-1 : 2/40 : 1]; % projective surface
-global cols = [-1 : 2/40 : 1];
+global rows = [-1 : 2/80 : 1]; % projective surface
+global cols = [-1 : 2/80 : 1];
 
 global objmap = cell(numel(rows),numel(cols));
 global depths = ones(numel(rows),numel(cols)) * inf;
@@ -245,7 +90,7 @@ function depth = depth_sphere(object,coords)
 	
 	% solve quadratic equation
 	%
-	% 0 = ||x + v*t|| - r
+	% 0 = ||x + v*t||_2 - r
 	%
 	% 0 = t^2 + r^2 - sum_i((x_i)^2)
 	%
@@ -266,7 +111,7 @@ function depth = depth_sphere(object,coords)
 end
 
 function polynomial = partial(polynomial3,coords,sel)
-	polynomial = zeros(size(polynomial3,3),1);
+	polynomial = zeros(1,size(polynomial3,3));
 	
 	
 	p = permute(polynomial3,sel);
@@ -305,7 +150,7 @@ function polynomial = partial(polynomial3,coords,sel)
 end
 
 function derivative = derive(polynomial)
-	derivative = zeros(numel(polynomial) - 1,1);
+	derivative = zeros(1,numel(polynomial) - 1);
 	
 	
 	p = polynomial;
@@ -327,7 +172,7 @@ function derivative = derive(polynomial)
 end
 
 function gradient = derive3(polynomial3,point)
-	gradient = zeros(3,1);
+	gradient = zeros(1,3);
 	
 	
 	p = polynomial3;
@@ -380,7 +225,7 @@ function value = evaluate(polynomial,t)
 	end
 end
 
-global stat = zeros(20,1);
+%global stat = zeros(40,1); %#
 
 function depth = depth_algebraic(object,coords)
 	depth = inf;
@@ -405,7 +250,7 @@ function depth = depth_algebraic(object,coords)
 	% intersect with x-axis.
 	%
 	%
-	% abort on abs(p(t))<eps or after 20
+	% abort on abs(p(t))<eps or after 40
 	% iterations, whichever occurs first
 	
 	
@@ -413,11 +258,11 @@ function depth = depth_algebraic(object,coords)
 	t1 = -1;
 	eps = 1e-2;
 	
-	for i = 1:20
+	for i = 1:40
 		
-		value = evaluate(p,t1);
+		value = evaluate(p,t1); %# cache
 		slope = evaluate(q,t1);
-		slope = min(-1,slope);
+		slope = -min(-1,slope);
 		
 		if abs(value) < eps
 			break;
@@ -426,15 +271,22 @@ function depth = depth_algebraic(object,coords)
 		t2 = t1;
 		t2 += value / slope;
 		
-		slope = evaluate(abs(q),max(abs([t1 t2])));
 		
-		t1 += value / slope;
+		%slope = evaluate(abs(q),max(abs([t1 t2])));
+		
+		%t3 = t1;
+		%t3 += value / slope;
+		
+		%t1 = min(t2,t3);
+		
+		
+		t1 = t2;
 		
 	end
 	
 	
-	global stat;
-	stat(i) += 1;
+	%global stat; %#
+	%stat(i) += 1;
 	
 	
 	if abs(value) < eps
@@ -467,7 +319,7 @@ for row = 1:numel(rows)
 	end
 end
 
-stat
+%stat %#
 
 
 % step 2: determine normals and colors
@@ -518,14 +370,15 @@ end
 
 
 close all
-figure = imshow(pixels);
+figure1 = imshow(pixels);
 axis equal
 axis off
 
 if exist("build") == 1
-	print(figure,sprintf("scene%d.jpg",build),"-djpg")
+	%print(figure1,sprintf("scene%d.png",build),"-dpng")
+	print(sprintf("scene%d.png",build),"-dpng")
 else
-	waitfor(figure)
+	waitfor(figure1)
 end
 
 
