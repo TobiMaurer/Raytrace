@@ -212,8 +212,8 @@ end
 clear objects;
 
 %objects{end+1} = new_plane([0.4 0.1 0],[1 3 2],@color_pattern);
-objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
-%objects{end+1} = new_algebraic([0 0 0.5],@polynomial_torus2(0.6,0.2,-2*pi/5),@color_light);
+%objects{end+1} = new_algebraic([0 0 0],@polynomial_torus(0.6,0.2),@color_light);
+objects{end+1} = new_algebraic([0 0 0.5],@polynomial_torus2(0.6,0.2,-2*pi/5),@color_light);
 
 %objects{end+1} = new_algebraic([0 0 0],@polynomial_cube2(),@color_light);
 

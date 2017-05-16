@@ -41,8 +41,8 @@ source("scene.m");
 % initialize variables
 
 
-global rows = [-1 : 2/80 : 1]; % projective surface
-global cols = [-1 : 2/80 : 1];
+global rows = [-1 : 2/40 : 1]; % projective surface
+global cols = [-1 : 2/40 : 1];
 
 global objmap = cell(numel(rows),numel(cols));
 global depths = ones(numel(rows),numel(cols)) * inf;
